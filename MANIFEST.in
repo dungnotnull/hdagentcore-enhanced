@@ -1,0 +1,27 @@
+include LICENSE
+include README.md
+include CONTRIBUTING.md
+include SECURITY.md
+include pyproject.toml
+include requirements.txt
+
+recursive-include agent *.py
+recursive-include tools *.py
+recursive-include tests *.py
+
+recursive-include docs *.md *.txt
+recursive-include docker Dockerfile docker-compose.yml
+
+global-exclude __pycache__
+global-exclude *.py[cod]
+global-exclude *.so
+global-exclude *.dylib
+global-exclude .DS_Store
+global-exclude .env
+global-exclude .venv
+global-exclude .tox
+global-exclude .pytest_cache
+global-exclude .mypy_cache
+global-exclude .ruff_cache
+global-exclude *.db
+global-exclude *.db-journal

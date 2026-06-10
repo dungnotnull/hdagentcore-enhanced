@@ -1,0 +1,37 @@
+# Core agent framework
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+click==8.1.7
+pydantic==2.9.2
+
+# LLM providers
+anthropic==0.40.0
+openai==1.55.3
+aiohttp==3.11.9
+
+# HuggingFace / ML
+sentence-transformers==3.3.1
+transformers==4.47.0
+torch==2.5.1
+faiss-cpu==1.9.0
+numpy==1.26.4
+
+# Scheduling
+apscheduler==3.10.4
+
+# Tool implementations
+duckduckgo-search==6.3.7
+jsonschema==4.23.0
+
+# Data
+sqlite3  # stdlib
+
+# Testing
+pytest==8.3.4
+pytest-asyncio==0.24.0
+
+# Optional: GCP Vertex AI
+# google-cloud-aiplatform==1.71.1
+
+# Optional: Azure OpenAI
+# already handled by openai package with base_url parameter

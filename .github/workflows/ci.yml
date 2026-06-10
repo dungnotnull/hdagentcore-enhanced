@@ -1,0 +1,230 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install black ruff mypy isort
+          pip install -e ".[dev]"
+
+      - name: Check formatting with Black
+        run: black --check agent/ tools/ tests/
+
+      - name: Check linting with Ruff
+        run: ruff check agent/ tools/ tests/
+
+      - name: Check import sorting with isort
+        run: isort --check-only agent/ tools/ tests/
+
+      - name: Type checking with mypy
+        run: mypy agent/ tools/
+        continue-on-error: true
+
+  test:
+    name: Test (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run unit tests
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          pytest tests/ -v -m "not integration" --cov=agent --cov=tools --cov-report=xml --cov-report=term
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-${{ matrix.python-version }}
+          fail_ci_if_error: false
+
+  test-integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run integration tests
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          pytest tests/ -v -m "integration" --timeout=300
+
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        run: |
+          docker build -f docker/Dockerfile -t agentcore-enhanced:test .
+
+      - name: Test Docker image
+        run: |
+          docker run --rm agentcore-enhanced:test python -c "import agent; import tools; print('OK')"
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Bandit security linter
+        run: |
+          pip install bandit[toml]
+          bandit -r agent/ tools/ -f json -o bandit-report.json
+        continue-on-error: true
+
+      - name: Run safety check
+        run: |
+          pip install safety
+          safety check --json > safety-report.json || true
+        continue-on-error: true
+
+      - name: Upload security reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: |
+            bandit-report.json
+            safety-report.json
+
+  dependency-check:
+    name: Dependency Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pip-audit
+
+      - name: Run pip-audit
+        run: |
+          pip-audit --desc --format json > pip-audit-report.json || true
+        continue-on-error: true
+
+      - name: Upload audit report
+        uses: actions/upload-artifact@v4
+        with:
+          name: pip-audit-report
+          path: pip-audit-report.json
+
+  docs-check:
+    name: Documentation Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Check all modules have docstrings
+        run: |
+          python -c "
+          import ast
+          import sys
+          from pathlib import Path
+
+          missing_docs = []
+          for py_file in Path('agent').rglob('*.py'):
+              if py_file.name == '__init__.py':
+                  continue
+              with open(py_file) as f:
+                  tree = ast.parse(f.read())
+                  for node in ast.walk(tree):
+                      if isinstance(node, (ast.FunctionDef, ast.ClassDef)):
+                          if not ast.get_docstring(node):
+                              missing_docs.append(f'{py_file}:{node.name}')
+          if missing_docs:
+              print('Missing docstrings:', missing_docs)
+              sys.exit(1)
+          "
+
+      - name: Verify README examples
+        run: |
+          # Extract code blocks from README and check syntax
+          python -c "
+          import re
+          with open('README.md') as f:
+              content = f.read()
+          blocks = re.findall(r'\`\`\`bash\n(.*?)\`\`\`', content, re.DOTALL)
+          for i, block in enumerate(blocks):
+              print(f'Checking example block {i+1}...')
+              # Just check for basic syntax issues
+              if 'git clone' in block and 'https://github.com/yourusername' in block:
+                  print('WARNING: Placeholder GitHub username in README')
+          "
+        continue-on-error: true

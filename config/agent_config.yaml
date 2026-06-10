@@ -1,0 +1,117 @@
+agent:
+  name: agentcore-enhanced
+  version: "1.0.0"
+  description: Multi-Cloud Agent Orchestrator with MCP, eval benchmark, and daily research self-learning
+
+server:
+  host: "0.0.0.0"
+  port: 7865
+  reload: false
+  workers: 1
+
+llm:
+  primary_provider: claude
+  fallback_chain: [claude, openai, azure, gcp, ollama]
+  models:
+    claude: claude-opus-4-8
+    openai: gpt-4o
+    azure: gpt-4o
+    gcp: gemini-1.5-pro
+    ollama: llama3
+    vllm: meta-llama/Meta-Llama-3-8B-Instruct
+  eval_judge_model: claude-sonnet-4-6
+  max_tokens: 4096
+  temperature: 0.7
+  max_retries: 3
+  retry_delays_seconds: [1, 2, 4]
+  cost_warning_threshold_usd: 0.50
+
+patterns:
+  similarity_threshold: 0.65
+  max_steps_default: 10
+  max_steps_limit: 30
+  default_pattern: react
+
+mcp:
+  server:
+    enabled: true
+    host: "127.0.0.1"
+    port: 8765
+  tools:
+    web_search:
+      enabled: true
+      max_results: 5
+    code_execute:
+      enabled: true
+      timeout_seconds: 10
+    file_read:
+      enabled: true
+      workspace_dir: "./workspace"
+    file_write:
+      enabled: true
+      workspace_dir: "./workspace"
+
+eval_benchmark:
+  enabled: true
+  weights:
+    task_success: 0.30
+    token_efficiency: 0.20
+    error_recovery: 0.20
+    latency: 0.15
+    quality: 0.15
+  composite_score_warning_threshold: 0.40
+  latency_max_ms: 30000
+
+hf_models:
+  bge_large:
+    model_id: BAAI/bge-large-en-v1.5
+    enabled: true
+    device: auto
+  minilm:
+    model_id: sentence-transformers/all-MiniLM-L6-v2
+    enabled: true
+    device: auto
+  codet5p:
+    model_id: Salesforce/codet5p-770m
+    enabled: true
+    device: auto
+  bge_reranker:
+    model_id: BAAI/bge-reranker-large
+    enabled: true
+    device: auto
+  cache_dir: ./models
+  idle_unload_seconds: 600
+
+knowledge_updater:
+  schedule: "0 6 * * *"
+  arxiv_categories: [cs.AI, cs.MA, cs.LG, cs.SE]
+  arxiv_max_results_per_category: 25
+  semantic_scholar_queries:
+    - "multi-agent LLM orchestration"
+    - "agent evaluation benchmark"
+    - "model context protocol MCP"
+    - "LLM tool use function calling"
+    - "autonomous agent architecture"
+  github_repos:
+    - awslabs/agentcore-samples
+    - langchain-ai/langchain
+    - run-llama/llama_index
+    - crewAIInc/crewAI
+    - microsoft/autogen
+  top_n_per_source: 10
+  recency_weights:
+    last_7_days: 1.0
+    last_30_days: 0.7
+    last_90_days: 0.4
+    older: 0.1
+
+memory:
+  db_path: ./data/agentcore.db
+  max_runs_stored: 10000
+  cost_log_retention_days: 90
+
+quality_gates:
+  pattern_similarity_min: 0.65
+  benchmark_composite_min: 0.40
+  cost_per_run_warning_usd: 0.50
+  min_papers_per_crawl: 1

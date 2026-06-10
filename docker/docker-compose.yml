@@ -1,0 +1,122 @@
+version: "3.9"
+
+services:
+  agentcore-agent:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: agentcore-enhanced:latest
+    container_name: agentcore-enhanced
+    restart: unless-stopped
+    ports:
+      - "7865:7865"
+    volumes:
+      - agent_data:/app/data
+      - agent_models:/app/models
+      - agent_workspace:/app/workspace
+      - ../SECOND-KNOWLEDGE-BRAIN.md:/app/SECOND-KNOWLEDGE-BRAIN.md
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY:-}
+      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT:-}
+      - GCP_PROJECT_ID=${GCP_PROJECT_ID:-}
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - PRIVACY_MODE=${PRIVACY_MODE:-false}
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+      - HOST=0.0.0.0
+      - PORT=7865
+    depends_on:
+      ollama:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:7865/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - agentcore-net
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: agentcore-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - agentcore-net
+
+  # GPU variant — use: docker compose --profile gpu up
+  agentcore-agent-gpu:
+    profiles: ["gpu"]
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: agentcore-enhanced:latest
+    container_name: agentcore-enhanced-gpu
+    restart: unless-stopped
+    ports:
+      - "7865:7865"
+    volumes:
+      - agent_data:/app/data
+      - agent_models:/app/models
+      - agent_workspace:/app/workspace
+      - ../SECOND-KNOWLEDGE-BRAIN.md:/app/SECOND-KNOWLEDGE-BRAIN.md
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OLLAMA_BASE_URL=http://ollama-gpu:11434
+      - PRIVACY_MODE=${PRIVACY_MODE:-false}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    depends_on:
+      - ollama-gpu
+    networks:
+      - agentcore-net
+
+  ollama-gpu:
+    profiles: ["gpu"]
+    image: ollama/ollama:latest
+    container_name: agentcore-ollama-gpu
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    networks:
+      - agentcore-net
+
+volumes:
+  agent_data:
+    driver: local
+  agent_models:
+    driver: local
+  agent_workspace:
+    driver: local
+  ollama_models:
+    driver: local
+
+networks:
+  agentcore-net:
+    driver: bridge

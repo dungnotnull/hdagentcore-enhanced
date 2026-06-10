@@ -1,0 +1,94 @@
+name: Feature Request
+description: Suggest a new feature or enhancement
+title: "[FEATURE] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a new feature! Please provide as much detail as possible.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which part of agentcore-enhanced would this affect?
+      options:
+        - Provider Adapter
+        - MCP Manager
+        - Benchmark
+        - Pattern Library
+        - Orchestrator
+        - API Server
+        - CLI
+        - Docker
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Feature Summary
+      description: Clear and concise description of the feature
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation / Use Case
+      description: |
+        Why do you want this feature?
+        What problem does it solve?
+        Who would benefit from this feature?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Detailed Proposal
+      description: |
+        How should this feature work?
+        Provide as much detail as possible:
+        - API changes
+        - Configuration changes
+        - Breaking changes
+        - Alternative approaches considered
+
+  - type: textarea
+    id: examples
+    attributes:
+      label: Examples
+      description: |
+        Show how this feature would be used:
+
+        ```python
+        # Example code
+        ```
+
+        ```bash
+        # Example CLI usage
+        ```
+
+  - type: dropdown
+    id: effort
+    attributes:
+      label: Implementation Effort
+      description: Rough estimate of implementation complexity
+      options:
+        - Trivial (1-2 hours)
+        - Small (1-2 days)
+        - Medium (3-5 days)
+        - Large (1-2 weeks)
+        - Major (3+ weeks)
+
+  - type: checkboxes
+    id: willingness
+    attributes:
+      label: Contribution
+      options:
+        - label: I am willing to implement this feature
+        - label: I am willing to help test this feature
+        - label: I am willing to write documentation for this feature
